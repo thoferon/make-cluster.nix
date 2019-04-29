@@ -1,0 +1,10 @@
+{
+  hydrogen = {
+  };
+
+  helium = {
+  };
+
+  lithium = {
+  };
+}
