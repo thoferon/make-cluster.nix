@@ -24,7 +24,7 @@ let
 
   baseConfigs = import ./lib/make-cluster.nix makeClusterConfig;
 
-  nodes = builtins.mapAttrs (name: module: { ... }: {
+  nodes = builtins.mapAttrs (name: module: { pkgs, lib, ... }: {
     imports = [module];
     config = {
       virtualisation.vlans = [7]; # Subnetwork 192.168.7.0/24 on eth1
@@ -35,7 +35,10 @@ let
           prefixLength = 24;
         }];
       };
-      users.users.root.initialPassword = "debug";
+
+      secretSharing.default.security.secretKeyFile =
+        lib.mkOverride 1 (toString (pkgs.writeText "not-so-secret-key"
+          "16995d092f0e529a42637ac84d6687ef9e42a916e2fc60d25ad39"));
     };
   }) baseConfigs;
 

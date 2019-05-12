@@ -17,6 +17,13 @@ let
           }) (builtins.attrValues otherNodes);
         };
       };
+
+      secretSharing.default = {
+        endpoint.ipAddress = node.vpnIP;
+        security.secretKeyFile = "/var/secret-sharing-key";
+      };
+
+      networking.firewall.allowedTCPPorts = [23879];
     };
 
 in

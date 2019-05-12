@@ -6,7 +6,7 @@ subtest "VPN", sub {
   subtest "servers have been assigned the correct IP", sub {
     sub check_ip {
       my ($server,$ip) = @_;
-      my ($status, $out) = $server->execute("ip address show dev vpn0");
+      my ($status, $out) = $server->execute("ip address show dev wg0");
       $out =~ /$ip/ or die;
     };
     check_ip($hydrogen, $hydrogen_ip);

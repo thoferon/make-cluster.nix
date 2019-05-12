@@ -105,41 +105,19 @@ in
       '';
     };
 
-    # FIXME: Should this "logic" be in its own module?
-    services.nginx = {
-      enable = true;
-      virtualHosts.${cfg.realIP} = {
-        listen = [{ addr = cfg.realIP; port = 500; }];
-        locations."= /wireguard" = {
-          tryFiles = "/pubkey =404";
-          alias = "/var/wireguard/";
-        };
-      };
-    };
-
-    systemd.services."wireguard-${cfg.interface}-public-keys" = {
-      enable = true;
-      before = ["wireguard-${cfg.interface}.service"];
-      requiredBy = ["wireguard-${cfg.interface}.service"];
-      description = "Try to fetch public keys from peers before starting WireGuard.";
-
-      serviceConfig = {
-        Type = "oneshot";
-        TimeoutSec = 900;
+    secretSharing = {
+      sharedFiles."wireguard-public-key" = {
+        path = "/var/wireguard/pubkey";
+        endpoint.ipAddress = cfg.realIP;
       };
 
-      script = ''
-        while [ ! -f "/var/wireguard/$peer.pubkey" ]; do
-          for peer in ${concatStringsSep " " (map (peer: peer.realIP) cfg.peers)}; do
-            pubkey="$(${pkgs.curl}/bin/curl --fail "http://$peer:500/wireguard" || echo -n)"
-            if [ "x$pubkey" != "x" ]; then
-              echo "$pubkey" > "/var/wireguard/$peer.pubkey"
-            else
-              sleep 5
-            fi
-          done
-        done
-      '';
+      remoteFiles = map (peer: {
+        identifier = "wireguard-public-key";
+        endpoint.ipAddress = peer.realIP;
+        path = "/var/wireguard/${peer.realIP}.pubkey";
+        mode = "0440";
+        wantedBy = ["wireguard-${cfg.interface}.service"];
+      }) cfg.peers;
     };
   };
 }
