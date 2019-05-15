@@ -12,9 +12,9 @@ let
   }) cfg.peers;
 
   clients = map (client: {
-    allowedIPs = [client.ip];
-    persistentKeepalive = true;
-    publicKey = client.publicKey;
+    inherit (client) publicKey;
+    allowedIPs = [client.ipAddress];
+    persistentKeepalive = 25;
   }) cfg.clients;
 
 in
@@ -62,14 +62,16 @@ in
 
     clients = mkOption {
       type = with types; listOf (submodule {
-        ip = mkOption {
-          type = str;
-          description = "IP address of the client in the VPN.";
-        };
+        options = {
+          ipAddress = mkOption {
+            type = str;
+            description = "IP address of the client in the VPN.";
+          };
 
-        publicKey = mkOption {
-          type = str;
-          description = "Client's public key (see wg pubkey.)";
+          publicKey = mkOption {
+            type = str;
+            description = "Client's public key (see wg pubkey.)";
+          };
         };
       });
       default = [];
@@ -86,6 +88,11 @@ in
       listenPort = 500;
       privateKeyFile = "/var/wireguard/privkey";
       peers = otherNodes ++ clients;
+    };
+
+    networking.nat = mkIf (cfg.clients != []) {
+      enable = true;
+      internalInterfaces = [cfg.interface];
     };
 
     system.activationScripts.wireguard = {

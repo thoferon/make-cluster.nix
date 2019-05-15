@@ -1,4 +1,4 @@
-{ nodes }:
+{ nodes, clients }:
 
 let
   makeNodeConfig = name: node: { config, ... }:
@@ -12,6 +12,7 @@ let
         vpn = {
           enable = true;
           inherit (node) vpnIP realIP;
+          inherit clients;
           peers = map (otherNode: {
             inherit (otherNode) vpnIP realIP;
           }) (builtins.attrValues otherNodes);

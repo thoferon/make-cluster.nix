@@ -5,7 +5,7 @@ subtest "VPN", sub {
 
   subtest "servers have been assigned the correct IP", sub {
     sub check_ip {
-      my ($server,$ip) = @_;
+      my ($server, $ip) = @_;
       my ($status, $out) = $server->execute("ip address show dev wg0");
       $out =~ /$ip/ or die;
     };
@@ -18,5 +18,20 @@ subtest "VPN", sub {
     $hydrogen->succeed("ping -c 1 $helium_ip");
     $helium->succeed("ping -c 1 $lithium_ip");
     $lithium->succeed("ping -c 1 $hydrogen_ip");
+  };
+
+  subtest "clients can connect to the VPN", sub {
+    $alice->start;
+    $bob->start;
+
+    $alice->waitForUnit("default.target");
+    $bob->waitForUnit("default.target");
+
+    # Alice connects to hydrogen and Bob to helium.
+    $alice->succeed("ping -c 1 $lithium_ip");
+    $bob->succeed("ping -c 1 $lithium_ip");
+
+    $alice->shutdown;
+    $bob->shutdown;
   };
 };
