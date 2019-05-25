@@ -236,7 +236,9 @@ in
         };
         inherit (file) wantedBy;
         before = file.wantedBy;
-        script = builtins.readFile fetchScript;
+        script = ''
+          ${fetchScript} "$@"
+        '';
         scriptArgs = pkgs.lib.strings.escapeShellArgs [
           file.endpoint.ipAddress
           file.endpoint.port
