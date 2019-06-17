@@ -1,6 +1,7 @@
 { nodes
 , clients ? []
 , initNode
+, storage
 , common ? {}
 }:
 
@@ -25,6 +26,18 @@ let
           peers = map (otherNode: {
             inherit (otherNode) vpnIP realIP;
           }) (builtins.attrValues otherNodes);
+        };
+
+        storage = {
+          enable = node ? storage && node.storage ? osds && node.storage.osds != [];
+          inherit name;
+          ipAddress = node.vpnIP;
+          inherit (storage) fsid subnet;
+          initialMember = {
+            name = storageInitNode;
+            ipAddress = nodes.${storageInitNode}.vpnIP;
+          };
+          inherit (node.storage) osds;
         };
       };
 
