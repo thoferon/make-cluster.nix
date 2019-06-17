@@ -98,8 +98,15 @@ let
       };
 
       path = mkOption {
-        type = types.str;
+        type = with types; nullOr str;
+        default = null;
         description = "Path of the file to be served.";
+      };
+
+      command = mkOption {
+        type = with types; nullOr str;
+        default = null;
+        description = "Command whose output is going to be shared.";
       };
 
       salt = mkOption {
@@ -183,13 +190,22 @@ in
   };
 
   config = {
-    assertions = map (file: {
-      assertion = builtins.match "^[[:alnum:]_-]+$" file.identifier != null;
-      message = ''
-        Invalid characters in identifier for shared file:
-        secretSharing.sharedFiles.\"${file.identifier}\".
-      '';
-    }) sharedFiles;
+    assertions = builtins.concatLists (map (file: [
+      {
+        assertion = builtins.match "^[[:alnum:]_-]+$" file.identifier != null;
+        message = ''
+          Invalid characters in identifier for shared file:
+          secretSharing.sharedFiles.\"${file.identifier}\".
+        '';
+      }
+      {
+        assertion = (file.path != null) != (file.command != null);
+        message = ''
+          Either path or command must be set in
+          secretSharing.sharedFiles.\"${file.identifier}\".
+        '';
+      }
+    ]) sharedFiles);
 
     services.nginx = mkIf (sharedFiles != []) {
       enable = true;
@@ -203,19 +219,25 @@ in
             port = firstFile.endpoint.port;
           };
           serverName = "secret.sharing.nixos";
-          locations = builtins.listToAttrs (map (file: {
-            name = "= /${file.identifier}";
-            value = {
-              extraConfig = ''
-                fastcgi_pass unix:${config.services.fcgiwrap.socketAddress};
-                fastcgi_param SCRIPT_FILENAME ${encryptScript};
-                fastcgi_param IDENTIFIER ${file.identifier};
-                fastcgi_param SALT ${file.salt};
-                fastcgi_param SHARED_PATH ${file.path};
-                fastcgi_param SECRET_KEY_FILE ${file.security.secretKeyFile};
-              '';
-            };
-          }) files);
+          locations = builtins.listToAttrs (map (file:
+            let
+              sharedType = if file.path != null then "path" else "command";
+              sharedObject = if file.path != null then file.path else file.command;
+            in
+            {
+              name = "= /${file.identifier}";
+              value = {
+                extraConfig = ''
+                  fastcgi_pass unix:${config.services.fcgiwrap.socketAddress};
+                  fastcgi_param SCRIPT_FILENAME ${encryptScript};
+                  fastcgi_param IDENTIFIER ${file.identifier};
+                  fastcgi_param SALT ${file.salt};
+                  fastcgi_param SHARED_TYPE ${sharedType};
+                  fastcgi_param SHARED_OBJECT ${pkgs.lib.strings.escapeNixString sharedObject};
+                  fastcgi_param SECRET_KEY_FILE ${file.security.secretKeyFile};
+                '';
+              };
+            }) files);
         }
       ) groupedSharedFiles;
     };
@@ -237,17 +259,16 @@ in
         inherit (file) wantedBy;
         before = file.wantedBy;
         script = ''
-          ${fetchScript} "$@"
+          ${fetchScript} ${pkgs.lib.strings.escapeShellArgs (with file; [
+            file.endpoint.ipAddress
+            file.endpoint.port
+            file.identifier
+            file.security.secretKeyFile
+            file.path
+            file.owner
+            file.mode
+          ])}
         '';
-        scriptArgs = pkgs.lib.strings.escapeShellArgs [
-          file.endpoint.ipAddress
-          file.endpoint.port
-          file.identifier
-          file.security.secretKeyFile
-          file.path
-          file.owner
-          file.mode
-        ];
       };
     }) cfg.remoteFiles);
   };

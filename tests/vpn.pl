@@ -27,9 +27,13 @@ subtest "VPN", sub {
     $alice->waitForUnit("default.target");
     $bob->waitForUnit("default.target");
 
-    # Alice connects to hydrogen and Bob to helium.
+    # Alice and Bob connects to hydrogen.
     $alice->succeed("ping -c 1 $lithium_ip");
     $bob->succeed("ping -c 1 $lithium_ip");
+
+    # At the moment, it's only possible if they both connect to the same node.
+    my $bob_ip = "10.128.128.2";
+    $alice->succeed("ping -c 1 $bob_ip");
 
     $alice->shutdown;
     $bob->shutdown;

@@ -1,12 +1,21 @@
-{ nodes, clients }:
+{ nodes
+, clients ? []
+, initNode
+, common ? {}
+}:
 
 let
+  storageInitNode = if storage ? initNode then storage.initNode else initNode;
+
   makeNodeConfig = name: node: { config, ... }:
     let
       otherNodes = builtins.removeAttrs nodes [name];
     in
     {
-      imports = [../modules];
+      imports = [
+        ../modules
+        common
+      ];
 
       services.cluster = {
         vpn = {
@@ -20,7 +29,10 @@ let
       };
 
       secretSharing.default = {
-        endpoint.ipAddress = node.vpnIP;
+        # FIXME: The default endpoint should use the VPN but nginx would
+        # therefore need the VPN to be up to start, creating a chicken and
+        # egg problem.
+        endpoint.ipAddress = node.realIP;
         security.secretKeyFile = "/var/secret-sharing-key";
       };
 

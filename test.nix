@@ -19,6 +19,8 @@ let
       };
     };
 
+    initNode = "hydrogen";
+
     clients = [
       {
         ipAddress = "10.128.128.1";
@@ -90,7 +92,7 @@ let
   clientNodes = {
     alice = makeClient "192.168.7.101" "10.128.128.1" "192.168.7.11" "10.128.0.1"
       "KLv57UEAA1I/xlCTZ6osl4SV6iuVhl9G6uXlGcipoVE=";
-    bob = makeClient "192.168.7.102" "10.128.128.2" "192.168.7.12" "10.128.0.2"
+    bob = makeClient "192.168.7.102" "10.128.128.2" "192.168.7.11" "10.128.0.2"
       "mEgDDHi7AYhHe3bn82uCRS63XrFFiwD3w6tP4L7CY2I=";
   };
 
