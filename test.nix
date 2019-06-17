@@ -6,37 +6,20 @@ let
       hydrogen = {
         vpnIP = "10.128.0.1";
         realIP = "192.168.7.11";
-        storage.osds = [
-          { id = "0"; device = "/dev/vdb"; }
-          { id = "1"; device = "/dev/vdc"; }
-        ];
       };
 
       helium = {
         vpnIP = "10.128.0.2";
         realIP = "192.168.7.12";
-        storage.osds = [
-          { id = "2"; device = "/dev/vdb"; }
-          { id = "3"; device = "/dev/vdc"; }
-        ];
       };
 
       lithium = {
         vpnIP = "10.128.0.3";
         realIP = "192.168.7.13";
-        storage.osds = [
-          { id = "4"; device = "/dev/vdb"; }
-          { id = "5"; device = "/dev/vdc"; }
-        ];
       };
     };
 
     initNode = "hydrogen";
-
-    storage = {
-      subnet = "10.128.0.0/24";
-      fsid = "a0ffc974-222e-449a-a078-121bdfcb110b";
-    };
 
     clients = [
       {
@@ -63,15 +46,6 @@ let
           prefixLength = 24;
         }];
       };
-
-      # VMs are too small to hold a normal OSD journal.
-      services.ceph.osd.extraConfig = {
-        "osd journal size" = "50";
-      };
-
-      # FIXME: Is there a setting like `osd journal size` that can be used
-      # so that the disk's size can be reduced to 500M instead.
-      virtualisation.emptyDiskImages = [10240 10240];
 
       secretSharing.default.security.secretKeyFile =
         lib.mkOverride 1 (toString (pkgs.writeText "not-so-secret-key"
@@ -124,7 +98,7 @@ let
 
 in
 import (nixpkgsSrc + /nixos/tests/make-test.nix) {
-  nodes = serverNodes; # // clientNodes;
+  nodes = serverNodes // clientNodes;
 
   testScript = ''
     $hydrogen->start;
@@ -136,6 +110,5 @@ import (nixpkgsSrc + /nixos/tests/make-test.nix) {
     $lithium->waitForUnit("default.target");
 
     ${builtins.readFile ./tests/vpn.pl}
-    ${builtins.readFile ./tests/storage.pl}
   '';
 }
