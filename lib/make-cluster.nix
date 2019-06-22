@@ -5,8 +5,6 @@
 }:
 
 let
-  storageInitNode = if storage ? initNode then storage.initNode else initNode;
-
   makeNodeConfig = name: node: { config, ... }:
     let
       otherNodes = builtins.removeAttrs nodes [name];

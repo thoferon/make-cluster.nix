@@ -8,7 +8,7 @@ if [ "$SHARED_TYPE" == "path" ]; then
 else
   pathExpr="<(eval \"$SHARED_OBJECT\")"
 fi
-encrypted="$(eval openssl enc -aes-256-cbc -base64 -in $pathExpr -K "$secretKey" -iv "$iv")"
+encrypted="$(eval openssl enc -aes-256-cbc -base64 -A -in $pathExpr -K "$secretKey" -iv "$iv")"
 
 echo "HTTP/1.1 200 OK"
 echo "Content-type: text/plain"

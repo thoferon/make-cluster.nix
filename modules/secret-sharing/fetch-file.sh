@@ -20,7 +20,7 @@ fetch() {
       output="$(curl --fail "http://$ipAddr:$port/$identifier")"
       if [ $? == 0 ]; then
         IFS="#" read iv encrypted <<<"$output"
-        openssl enc -d -aes-256-cbc -base64 -K "$secretKey" -iv "$iv" \
+        openssl enc -d -aes-256-cbc -base64 -A -K "$secretKey" -iv "$iv" \
           <<<"$encrypted" > "$path"
         if [ $? == 0 ]; then
           exit 0
