@@ -8,6 +8,7 @@ let
   makeNodeConfig = name: node: { config, ... }:
     let
       otherNodes = builtins.removeAttrs nodes [name];
+      isInitNode = initNode == name;
     in
     {
       imports = [
@@ -23,6 +24,12 @@ let
           peers = map (otherNode: {
             inherit (otherNode) vpnIP realIP;
           }) (builtins.attrValues otherNodes);
+        };
+
+        pki = {
+          enable = true;
+          initNodeIP = nodes.${initNode}.realIP;
+          inherit isInitNode;
         };
       };
 
