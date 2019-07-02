@@ -1,16 +1,21 @@
 let
   nixpkgsSrc = (import ./sources.nix {}).nixpkgs;
 
+  nixpkgs = import nixpkgsSrc {};
+  inherit (nixpkgs) lib;
+
   makeClusterConfig = {
     nodes = {
       hydrogen = {
         vpnIP = "10.128.0.1";
         realIP = "192.168.7.11";
+        kubeMaster = true;
       };
 
       helium = {
         vpnIP = "10.128.0.2";
         realIP = "192.168.7.12";
+        kubeMaster = true;
       };
 
       lithium = {
@@ -38,6 +43,9 @@ let
   serverNodes = builtins.mapAttrs (name: module: { pkgs, lib, ... }: {
     imports = [module];
     config = {
+      virtualisation.memorySize = 1024;
+      virtualisation.diskSize = 4096;
+
       virtualisation.vlans = [7]; # Subnetwork 192.168.7.0/24 on eth1
       networking.interfaces.eth1 = {
         useDHCP = false;
@@ -52,6 +60,13 @@ let
           "16995d092f0e529a42637ac84d6687ef9e42a916e2fc60d25ad39"));
     };
   }) baseConfigs;
+
+  # NixOS tests add entries in /etc/hosts that conflict with those generated
+  # by the VPN config.
+  renamedServerNodes =
+    lib.attrsets.mapAttrs'
+      (name: config: lib.attrsets.nameValuePair "vm${name}" config)
+      serverNodes;
 
   makeClient = realIP: vpnIP: serverRealIP: serverVPNIP: key: { pkgs, lib, ... }: {
     imports = [./modules];
@@ -98,7 +113,7 @@ let
 
 in
 import (nixpkgsSrc + /nixos/tests/make-test.nix) {
-  nodes = serverNodes // clientNodes;
+  nodes = renamedServerNodes // clientNodes;
 
   testScript = ''
     $hydrogen->start;

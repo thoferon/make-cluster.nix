@@ -32,6 +32,12 @@ in
       description = "Interface name to be created.";
     };
 
+    name = mkOption {
+      type = types.str;
+      example = "hydrogen";
+      description = "Name of this node.";
+    };
+
     vpnIP = mkOption {
       type = types.str;
       description = "IP address of the node in the VPN.";
@@ -45,6 +51,11 @@ in
     peers = mkOption {
       type = with types; listOf (submodule {
         options = {
+          name = mkOption {
+            type = str;
+            description = "Name of the peer.";
+          };
+
           realIP = mkOption {
             type = str;
             description = "Physical IP address of the peer.";
@@ -94,6 +105,10 @@ in
       enable = true;
       internalInterfaces = [cfg.interface];
     };
+
+    networking.extraHosts = builtins.concatStringsSep "\n"
+      (["${cfg.name} ${cfg.vpnIP}"]
+        ++ map (peer: "${peer.vpnIP} ${peer.name}") cfg.peers);
 
     system.activationScripts.wireguard = {
       deps = [];
