@@ -63,16 +63,26 @@ in
     masterIPAddress = mkOption {
       type = types.str;
       example = "10.128.0.1";
-      default = cfg.ipAddress;
       description = "IP Address of one of the API servers.";
     };
   };
 
   config = {
+    environment.systemPackages = [pkgs.kubectl];
+
     services.kubernetes = {
       roles = ["node"];
+      easyCerts = false;
+      inherit caFile;
 
-      inherit kubeconfig;
+      kubeconfig = {
+        inherit caFile;
+        certFile = mkCertPath "kubelet";
+        keyFile = mkCertPath "kubelet-key";
+        server = "https://${cfg.masterIPAddress}:4443";
+      };
+
+      apiserverAddress = "https://${cfg.masterIPAddress}:4443";
 
       kubelet = {
         address = cfg.ipAddress;
@@ -115,9 +125,6 @@ in
     };
 
     services.flannel.iface = config.services.cluster.vpn.interface;
-
-    # FIXME: remove this
-    networking.firewall.enable = false;
 
     networking.firewall.interfaces.${config.services.cluster.vpn.interface} = {
       allowedTCPPorts = [

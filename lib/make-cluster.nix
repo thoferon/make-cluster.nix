@@ -22,6 +22,7 @@ let
             (_: node: if node ? kubeMaster then node.kubeMaster else false)
             nodes);
       isInitNode = initNode == name;
+      masterIPAddress = if kubeMaster then vpnIP else nodes.${initNode}.vpnIP;
     in
     {
       imports = [
@@ -58,8 +59,8 @@ let
           };
 
           node = {
-            inherit name;
             enable = true;
+            inherit name masterIPAddress;
             ipAddress = vpnIP;
           };
         };

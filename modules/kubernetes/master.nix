@@ -134,8 +134,6 @@ in
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = [pkgs.kubectl];
-
     services.kubernetes = {
       roles = ["master"];
       easyCerts = false;
@@ -154,9 +152,6 @@ in
         tlsCertFile = mkCertPath "kube-apiserver";
         tlsKeyFile = mkCertPath "kube-apiserver-key";
         serviceAccountKeyFile = mkCertPath "kube-service-account-key";
-
-        # FIXME: remove this
-        insecurePort = 8080;
 
         etcd = {
           inherit caFile;
@@ -197,7 +192,10 @@ in
       addons = {
         dashboard = {
           enable = true;
-          rbac.clusterAdmin = true;
+          rbac = {
+            enable = true;
+            clusterAdmin = true;
+          };
         };
 
         dns = {
@@ -221,8 +219,6 @@ in
           bootstrapAddonsKubeconfig = kubeconfig;
         };
     };
-
-    #services.flannel.etcd.endpoints = ["https://${cfg.ipAddress}:2379"];
 
     services.certmgr = {
       enable = true;
