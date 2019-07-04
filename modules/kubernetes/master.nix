@@ -24,6 +24,14 @@ let
         group = "kubernetes";
       };
 
+      kubeAdmin = mkCert {
+        name = "kube-admin";
+        service = "kube-apiserver";
+        action = "reload"; # Just because it needs to do something
+        CN = "cluster-admin";
+        O = "system:masters";
+      };
+
       etcd = mkCert {
         name = "etcd";
         service = "etcd";
@@ -78,7 +86,7 @@ let
     in
     builtins.listToAttrs
       (if cfg.isInitNode
-        then commonCerts ++ [serviceAccount]
+        then commonCerts ++ [serviceAccount kubeAdmin]
         else commonCerts);
 
 in
