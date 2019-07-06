@@ -22,6 +22,8 @@ let
         name = "kube-service-account";
         owner = "kubernetes";
         group = "kubernetes";
+        CN = "system:service-account";
+        O = "system:masters";
       };
 
       kubeAdmin = mkCert {
