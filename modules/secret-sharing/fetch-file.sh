@@ -7,8 +7,6 @@ fetch() {
   local owner="$6"
   local mode="$7"
 
-  secretKey="$(cat $secretKeyFile)"
-
   touch "$path"
   chown "$owner" "$path"
   chmod "$mode" "$path"
@@ -17,13 +15,18 @@ fetch() {
   if [ ! -s "$path" ]; then
     # We don't want to loop if the file stays empty. It might be legitimate.
     while true; do
+      # This is inside the loop in case it is created or modified later on.
+      secretKey="$(cat $secretKeyFile)"
+
       output="$(curl --fail "http://$ipAddr:$port/$identifier")"
       if [ $? == 0 ]; then
+        temppath="$(mktemp)"
+        chmod 600 "$temppath"
         IFS="#" read iv encrypted <<<"$output"
         openssl enc -d -aes-256-cbc -base64 -A -K "$secretKey" -iv "$iv" \
-          <<<"$encrypted" > "$path"
+          <<<"$encrypted" > "$temppath"
         if [ $? == 0 ]; then
-          exit 0
+          cp "$temppath" "$path" && rm "$temppath" && exit 0
         else
           sleep 15
         fi
