@@ -107,7 +107,7 @@ in
     };
 
     networking.extraHosts = builtins.concatStringsSep "\n"
-      (["${cfg.name} ${cfg.vpnIP}"]
+      (["${cfg.vpnIP} ${cfg.name}"]
         ++ map (peer: "${peer.vpnIP} ${peer.name}") cfg.peers);
 
     system.activationScripts.wireguard = {
