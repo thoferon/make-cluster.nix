@@ -9,15 +9,15 @@ subtest "VPN", sub {
       my ($status, $out) = $server->execute("ip address show dev wg0");
       $out =~ /$ip/ or die;
     };
-    check_ip($hydrogen, $hydrogen_ip);
-    check_ip($helium, $helium_ip);
-    check_ip($lithium, $lithium_ip);
+    check_ip($vmhydrogen, $hydrogen_ip);
+    check_ip($vmhelium, $helium_ip);
+    check_ip($vmlithium, $lithium_ip);
   };
 
   subtest "servers can ping each other", sub {
-    $hydrogen->succeed("ping -c 1 $helium_ip");
-    $helium->succeed("ping -c 1 $lithium_ip");
-    $lithium->succeed("ping -c 1 $hydrogen_ip");
+    $vmhydrogen->succeed("ping -c 1 $helium_ip");
+    $vmhelium->succeed("ping -c 1 $lithium_ip");
+    $vmlithium->succeed("ping -c 1 $hydrogen_ip");
   };
 
   subtest "clients can connect to the VPN", sub {

@@ -116,13 +116,13 @@ import (nixpkgsSrc + /nixos/tests/make-test.nix) {
   nodes = renamedServerNodes // clientNodes;
 
   testScript = ''
-    $hydrogen->start;
-    $helium->start;
-    $lithium->start;
+    $vmhydrogen->start;
+    $vmhelium->start;
+    $vmlithium->start;
 
-    $hydrogen->waitForUnit("default.target");
-    $helium->waitForUnit("default.target");
-    $lithium->waitForUnit("default.target");
+    $vmhydrogen->waitForUnit("default.target");
+    $vmhelium->waitForUnit("default.target");
+    $vmlithium->waitForUnit("default.target");
 
     ${builtins.readFile ./tests/vpn.pl}
   '';

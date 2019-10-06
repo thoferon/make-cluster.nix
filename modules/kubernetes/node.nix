@@ -46,7 +46,7 @@ let
 in
 {
   options.services.cluster.kubernetes.node = {
-    enable = mKEnableOption "Kubernetes node";
+    enable = mkEnableOption "Kubernetes node";
 
     name = mkOption {
       type = types.str;
@@ -67,7 +67,7 @@ in
     };
   };
 
-  config = {
+  config = mkIf cfg.enable {
     environment.systemPackages = [pkgs.kubectl];
 
     services.kubernetes = {
@@ -112,19 +112,19 @@ in
         };
       };
 
-      flannel = {
-        enable = true;
-
-        kubeconfig = {
-          inherit caFile;
-          certFile = mkCertPath "kube-flannel";
-          keyFile = mkCertPath "kube-flannel-key";
-          server = "https://${cfg.masterIPAddress}:4443";
-        };
-      };
+      flannel.enable = true;
     };
 
-    services.flannel.iface = config.services.cluster.vpn.interface;
+    services.flannel = {
+      iface = config.services.cluster.vpn.interface;
+
+      kubeconfig = config.services.kubernetes.lib.mkKubeConfig "kube-flannel" {
+        inherit caFile;
+        certFile = mkCertPath "kube-flannel";
+        keyFile = mkCertPath "kube-flannel-key";
+        server = "https://${cfg.masterIPAddress}:4443";
+      };
+    };
 
     networking.firewall.interfaces.${config.services.cluster.vpn.interface} = {
       allowedTCPPorts = [

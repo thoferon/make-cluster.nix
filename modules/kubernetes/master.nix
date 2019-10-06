@@ -212,20 +212,7 @@ in
         };
       };
 
-      addonManager =
-        let
-          kubeconfig = {
-            inherit caFile;
-            certFile = mkCertPath "kube-addon-manager";
-            keyFile = mkCertPath "kube-addon-manager-key";
-            server = "https://${cfg.ipAddress}:4443";
-          };
-        in
-        {
-          enable = true;
-          inherit kubeconfig;
-          bootstrapAddonsKubeconfig = kubeconfig;
-        };
+      addonManager.enable = true;
     };
 
     services.certmgr = {
