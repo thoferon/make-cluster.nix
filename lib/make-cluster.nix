@@ -10,19 +10,25 @@ let
     {
       vpnIP,
       realIP,
-      kubeMaster ? false
+      kubeMaster ? null
     }:
     { config, lib, ... }:
     let
       otherNodes = builtins.removeAttrs nodes [name];
       masterIPAddresses =
-        builtins.mapAttrs
-          (name: node: node.vpnIP)
-          (lib.attrsets.filterAttrs
-            (_: node: if node ? kubeMaster then node.kubeMaster else false)
-            nodes);
+        builtins.map
+          ({ name, ipAddress, ... }: { inherit name ipAddress; })
+          (lib.lists.sort
+            (x: y: x.order < y.order)
+            (builtins.attrValues (builtins.mapAttrs
+              (name: node:
+                { inherit name; ipAddress = node.vpnIP; order = kubeMaster; })
+              (lib.attrsets.filterAttrs
+                (_: node: node ? kubeMaster && node.kubeMaster != null)
+                nodes))));
       isInitNode = initNode == name;
-      masterIPAddress = if kubeMaster then vpnIP else nodes.${initNode}.vpnIP;
+      masterIPAddress =
+        if kubeMaster != null then vpnIP else nodes.${initNode}.vpnIP;
     in
     {
       imports = [
@@ -48,7 +54,7 @@ let
 
         kubernetes = {
           master = {
-            enable = kubeMaster;
+            enable = kubeMaster != null;
             ipAddress = vpnIP;
             inherit name isInitNode masterIPAddresses;
             initNode = {

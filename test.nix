@@ -9,18 +9,24 @@ let
       hydrogen = {
         vpnIP = "10.128.0.1";
         realIP = "192.168.7.11";
-        kubeMaster = true;
+        kubeMaster = 1;
       };
 
       helium = {
         vpnIP = "10.128.0.2";
         realIP = "192.168.7.12";
-        kubeMaster = true;
+        kubeMaster = 2;
       };
 
       lithium = {
         vpnIP = "10.128.0.3";
         realIP = "192.168.7.13";
+        kubeMaster = 3;
+      };
+
+      beryllium = {
+        vpnIP = "10.128.0.4";
+        realIP = "192.168.7.14";
       };
     };
 

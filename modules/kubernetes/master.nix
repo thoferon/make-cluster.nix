@@ -89,6 +89,57 @@ let
         then commonCerts ++ [serviceAccount kubeAdmin]
         else commonCerts);
 
+  etcdCommonConfig = {
+    inherit (cfg) name;
+    advertiseClientUrls = ["https://${cfg.ipAddress}:2379"];
+    certFile = mkCertPath "etcd";
+    clientCertAuth = true;
+    initialAdvertisePeerUrls = ["https://${cfg.ipAddress}:2380"];
+    keyFile = mkCertPath "etcd-key";
+    listenClientUrls = ["https://${cfg.ipAddress}:2379"];
+    listenPeerUrls = ["https://${cfg.ipAddress}:2380"];
+    peerCertFile = mkCertPath "etcd";
+    peerClientCertAuth = true;
+    peerKeyFile = mkCertPath "etcd-key";
+    peerTrustedCaFile = caFile;
+    trustedCaFile = caFile;
+  };
+
+  etcdInitConfig = {
+    initialClusterState = "new";
+    initialCluster = [
+      "${cfg.initNode.name}=https://${cfg.initNode.ipAddress}:2380"
+    ];
+  };
+
+  etcdOtherConfig = {
+    initialClusterState = "existing";
+    initialCluster =
+      let
+        takeUntil = pred: list:
+          (pkgs.lib.lists.foldr
+            (x: { acc, found }:
+              let
+                found' = found || pred x;
+              in
+              if found'
+                then { acc = [x] ++ acc; found = found'; }
+                else { inherit acc found; }
+            ) { acc = []; found = false; } list).acc;
+      in
+      ["${cfg.initNode.name}=https://${cfg.initNode.ipAddress}:2380"]
+      ++ builtins.map
+          ({ name, ipAddress }: "${name}=https://${ipAddress}:2380")
+          (builtins.filter
+            ({ name, ... }: name != cfg.initNode.name)
+            (takeUntil ({ name, ...}: name == cfg.name)
+              cfg.masterIPAddresses));
+  };
+
+  etcdConfig =
+    etcdCommonConfig //
+    (if cfg.isInitNode then etcdInitConfig else etcdOtherConfig);
+
 in
 {
   options.services.cluster.kubernetes.master = {
@@ -107,22 +158,41 @@ in
     };
 
     masterIPAddresses = mkOption {
-      type = with types; attrsOf str;
-      example = { hydrogen = "10.1.0.2"; };
-      description = "IP addresses of the master nodes.";
+      type = with types; listOf (submodule {
+        options = {
+          name = mkOption {
+            type = str;
+            description = "Name of the node";
+          };
+
+          ipAddress = mkOption {
+            type = str;
+            description = "IP address of the node";
+          };
+        };
+      });
+
+      example = [{ name = "hydrogen"; ipAddress = "10.1.0.2"; }];
+
+      description = ''
+        IP addresses of the master nodes.
+
+        Add new nodes *at the end* of the list. The order in the list determines
+        the order in which they are added to the etcd member list.
+      '';
     };
 
     initNode = {
       name = mkOption {
         type = types.str;
         example = "hydrogen";
-        description = "Initialisation node's name";
+        description = "Initialisation node's name.";
       };
 
       ipAddress = mkOption {
         type = types.str;
         example = "10.1.0.1";
-        description = "Initialisation node's IP address";
+        description = "Initialisation node's IP address.";
       };
 
       # FIXME: This should go away when the issue with secretSharing not being
@@ -130,7 +200,7 @@ in
       sharedFileIPAddress = mkOption {
         type = types.str;
         example = "1.2.3.4";
-        description = "IP address on which secretSharing is listening";
+        description = "IP address on which secretSharing is listening.";
       };
     };
 
@@ -220,41 +290,61 @@ in
       specs = certificates;
     };
 
-    # FIXME: it is not possible to add new nodes at the moment.
-    # The cluster should probably be initialised on the initialisation node
-    # with only one node. Other nodes would have `initialClusterState` set
-    # to "existing" and a job on the initialisation node could add them to
-    # the cluster one at a time waiting for the cluster to be healthy at each
-    # step.
-    services.etcd = {
-      inherit (cfg) name;
-      advertiseClientUrls = ["https://${cfg.ipAddress}:2379"];
-      certFile = mkCertPath "etcd";
-      clientCertAuth = true;
-      initialAdvertisePeerUrls = ["https://${cfg.ipAddress}:2380"];
-      initialCluster = builtins.attrValues
-        (builtins.mapAttrs (name: addr: "${name}=https://${addr}:2380")
-          cfg.masterIPAddresses);
-      initialClusterState = "new";
-      keyFile = mkCertPath "etcd-key";
-      listenClientUrls = ["https://${cfg.ipAddress}:2379"];
-      listenPeerUrls = ["https://${cfg.ipAddress}:2380"];
-      peerCertFile = mkCertPath "etcd";
-      peerClientCertAuth = true;
-      peerKeyFile = mkCertPath "etcd-key";
-      peerTrustedCaFile = caFile;
-      trustedCaFile = caFile;
+    services.etcd = etcdConfig;
+
+    # Etcd might fail because the VPN is not up, we don't have the certs or
+    # because the init node hasn't added this node as a member yet.
+    # This unit should restart until it works.
+    systemd.services.etcd.serviceConfig = {
+      RestartSec = "10";
+      Restart = "always";
+      # Never trigger the start limit.
+      StartLimitIntervalSec = "1";
+      StartLimitBurst = "5";
     };
 
-    # Wait for VPN before starting etcd. Systemd's after, requires, etc. didn't
-    # work.
-    systemd.services.etcd.preStart = ''
-      while true; do
-        ${pkgs.iproute}/bin/ip \
-          address show dev ${config.services.cluster.vpn.interface} \
-          && break || sleep 5
-      done
-    '';
+    systemd.services.etcd-init = mkIf cfg.isInitNode {
+      enable = true;
+
+      reloadIfChanged = true;
+      wantedBy = ["multi-user.target"];
+      requires = ["network.target"];
+      serviceConfig = {
+        RestartSec = "5";
+        Restart = "on-failure";
+        # Never trigger the start limit.
+        StartLimitIntervalSec = "1";
+        StartLimitBurst = "5";
+      };
+
+      path = with pkgs; [etcd gnugrep];
+
+      script = ''
+        ctl() {
+          etcdctl \
+            --endpoints https://${cfg.initNode.ipAddress}:2379 \
+            --ca-file ${caFile} \
+            --cert-file ${mkCertPath "etcd"} \
+            --key-file ${mkCertPath "etcd-key"} \
+            "$@"
+        }
+
+        add_member() {
+          local name="$1"
+          local addr="$2"
+
+          (ctl member list | grep "$name") || \
+            ctl member add "$name" "https://$addr:2380"
+          while true; do
+            (ctl member list | grep "$name") && break || sleep 5
+          done
+        }
+
+        ${builtins.concatStringsSep "\n" (builtins.map
+          ({ name, ipAddress }: "add_member ${name} ${ipAddress}")
+          cfg.masterIPAddresses)}
+      '';
+    };
 
     networking.firewall.interfaces.${config.services.cluster.vpn.interface} = {
       allowedTCPPorts = [
