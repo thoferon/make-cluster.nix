@@ -246,6 +246,16 @@ in
       trustedCaFile = caFile;
     };
 
+    # Wait for VPN before starting etcd. Systemd's after, requires, etc. didn't
+    # work.
+    systemd.services.etcd.preStart = ''
+      while true; do
+        ${pkgs.iproute}/bin/ip \
+          address show dev ${config.services.cluster.vpn.interface} \
+          && break || sleep 5
+      done
+    '';
+
     networking.firewall.interfaces.${config.services.cluster.vpn.interface} = {
       allowedTCPPorts = [
         2379 2380 # etcd

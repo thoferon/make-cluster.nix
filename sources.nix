@@ -2,7 +2,7 @@
 rec {
   nixpkgs = builtins.fetchGit {
     url = "https://github.com/thoferon/nixpkgs.git";
-    rev = "7b92c13c2eb7f193604f1a2c058356722364b943";
+    rev = "ec552a73a076197a87eaf55ebec479b99a56e1ef";
     ref = "wireguard-publickeyfile";
   };
 }
