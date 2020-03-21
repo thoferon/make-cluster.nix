@@ -285,6 +285,15 @@ in
       addonManager.enable = true;
     };
 
+    # Ideally, this should be fixed upstream but I don't have time now.
+    systemd.services.kube-addon-manager.environment.KUBECTL_OPTS =
+      builtins.concatStringsSep " " [
+        "--server https://${cfg.ipAddress}:4443"
+        "--certificate-authority ${caFile}"
+        "--client-certificate ${mkCertPath "kube-addon-manager"}"
+        "--client-key ${mkCertPath "kube-addon-manager-key"}"
+      ];
+
     services.certmgr = {
       enable = true;
       specs = certificates;
