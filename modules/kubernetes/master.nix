@@ -286,14 +286,34 @@ in
       addonManager.enable = true;
     };
 
-    # Ideally, this should be fixed upstream but I don't have time now.
-    systemd.services.kube-addon-manager.environment.KUBECTL_OPTS =
+    # FIXME: After the refactoring of the Kube code in NixOS/nixpkgs, some stuff
+    # was moved to the PKI module even though it's not related to it. This
+    # breaks CoreDNS (deployed by the addon manager) when the PKI module is not
+    # enabled. The following code fixes the issue.
+    systemd.services.kube-addon-manager = {
+      environment.KUBECTL_OPTS =
       builtins.concatStringsSep " " [
         "--server https://${cfg.ipAddress}:4443"
         "--certificate-authority ${caFile}"
         "--client-certificate ${mkCertPath "kube-addon-manager"}"
         "--client-key ${mkCertPath "kube-addon-manager-key"}"
       ];
+      serviceConfig.PermissionsStartOnly = true;
+      preStart = with pkgs;
+        let
+          files =
+            mapAttrsToList (n: v: writeText "${n}.json" (builtins.toJSON v))
+              config.services.kubernetes.addonManager.bootstrapAddons;
+        in
+        ''
+          ${kubectl}/bin/kubectl $KUBECTL_OPTS \
+            --server https://${cfg.ipAddress}:4443 \
+            --certificate-authority ${caFile} \
+            --client-certificate ${mkCertPath "kube-addon-manager"} \
+            --client-key ${mkCertPath "kube-addon-manager-key"} \
+            apply -f ${concatStringsSep " \\\n -f " files}
+        '';
+    };
 
     services.certmgr = {
       enable = true;
