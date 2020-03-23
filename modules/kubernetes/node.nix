@@ -32,15 +32,6 @@ let
       CN = "system:master:${cfg.name}";
       O = "system:masters";
     })
-
-    (mkCert {
-      name = "kube-flannel";
-      service = "flannel";
-      owner = "kubernetes";
-      group = "kubernetes";
-      CN = "system:node:${cfg.name}";
-      O = "system:nodes";
-    })
   ];
 
 in
@@ -58,6 +49,12 @@ in
       type = types.str;
       example = "10.128.0.1";
       description = "IP address of this address in the VPN.";
+    };
+
+    podCidr = mkOption {
+      type = types.str;
+      example = "10.1.0.0/24";
+      description = "CIDR of IPs used by the pods running on this node.";
     };
 
     masterIPAddress = mkOption {
@@ -92,6 +89,24 @@ in
         tlsCertFile = mkCertPath "kubelet";
         tlsKeyFile = mkCertPath "kubelet-key";
 
+        extraOpts = "--pod-cidr ${cfg.podCidr}";
+
+        networkPlugin = "cni";
+        cni.config = [{
+          cniVersion = "0.3.1";
+          name = "kube";
+          type = "bridge";
+          bridge = "kube0";
+          isDefaultGateway = true;
+          forceAddress = false;
+          ipMasq = true;
+          hairpinMode = true;
+          ipam = {
+            type = "host-local";
+            subnet = cfg.podCidr;
+          };
+        }];
+
         kubeconfig = {
           inherit caFile;
           certFile = mkCertPath "kubelet";
@@ -110,19 +125,6 @@ in
           keyFile = mkCertPath "kube-proxy-key";
           server = "https://${cfg.masterIPAddress}:4443";
         };
-      };
-
-      flannel.enable = true;
-    };
-
-    services.flannel = {
-      iface = config.services.cluster.vpn.interface;
-
-      kubeconfig = config.services.kubernetes.lib.mkKubeConfig "kube-flannel" {
-        inherit caFile;
-        certFile = mkCertPath "kube-flannel";
-        keyFile = mkCertPath "kube-flannel-key";
-        server = "https://${cfg.masterIPAddress}:4443";
       };
     };
 

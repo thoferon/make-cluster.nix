@@ -6,7 +6,7 @@ let
   cfg = config.services.cluster.vpn;
 
   otherNodes = map (peer: {
-    allowedIPs = [peer.vpnIP];
+    allowedIPs = [peer.vpnIP peer.podCidr];
     endpoint = "${peer.realIP}:500";
     publicKeyFile = "/var/wireguard/${peer.realIP}.pubkey";
   }) cfg.peers;
@@ -64,6 +64,11 @@ in
           vpnIP = mkOption {
             type = str;
             description = "IP address of the peer in the VPN.";
+          };
+
+          podCidr = mkOption {
+            type = str;
+            description = "CIDR of IPs used by pods running on that peer.";
           };
         };
       });

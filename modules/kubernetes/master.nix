@@ -258,6 +258,7 @@ in
         serviceAccountKeyFile = mkCertPath "kube-service-account-key";
         tlsCertFile = mkCertPath "kube-controller-manager";
         tlsKeyFile = mkCertPath "kube-controller-manager-key";
+        allocateNodeCIDRs = false;
 
         kubeconfig = {
           inherit caFile;

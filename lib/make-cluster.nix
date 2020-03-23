@@ -10,6 +10,7 @@ let
     {
       vpnIP,
       realIP,
+      podCidr,
       kubeMaster ? null
     }:
     { config, lib, ... }:
@@ -42,7 +43,7 @@ let
           inherit name vpnIP realIP clients;
           peers = builtins.attrValues (builtins.mapAttrs (name: otherNode: {
             inherit name;
-            inherit (otherNode) vpnIP realIP;
+            inherit (otherNode) vpnIP realIP podCidr;
           }) otherNodes);
         };
 
@@ -66,7 +67,7 @@ let
 
           node = {
             enable = true;
-            inherit name masterIPAddress;
+            inherit name masterIPAddress podCidr;
             ipAddress = vpnIP;
           };
         };
