@@ -304,12 +304,19 @@ in
     # Etcd might fail because the VPN is not up, we don't have the certs or
     # because the init node hasn't added this node as a member yet.
     # This unit should restart until it works.
-    systemd.services.etcd.serviceConfig = {
-      RestartSec = "10";
-      Restart = "always";
-      # Never trigger the start limit.
-      StartLimitIntervalSec = "1";
-      StartLimitBurst = "5";
+    systemd.services.etcd = {
+      serviceConfig = {
+        RestartSec = "10";
+        Restart = "always";
+        # Never trigger the start limit.
+        StartLimitIntervalSec = "1";
+        StartLimitBurst = "5";
+      };
+
+      # FIXME: This should be fixed in NixOS/nixpkgs.
+      environment = {
+        ETCD_PEER_CLIENT_CERT_AUTH = "1";
+      };
     };
 
     systemd.services.etcd-init = mkIf cfg.isInitNode {
